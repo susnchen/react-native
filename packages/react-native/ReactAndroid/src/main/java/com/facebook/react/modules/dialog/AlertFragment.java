@@ -11,10 +11,18 @@ import android.annotation.SuppressLint;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.res.Resources;
 import android.content.res.TypedArray;
+import android.os.Build;
 import android.os.Bundle;
+import android.util.TypedValue;
+import android.view.View;
+import android.widget.TextView;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
+import androidx.core.view.AccessibilityDelegateCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.fragment.app.DialogFragment;
 import com.facebook.infer.annotation.Nullsafe;
 
@@ -67,13 +75,46 @@ public class AlertFragment extends DialogFragment implements DialogInterface.OnC
   }
 
   /**
+   * Creates the dialog title custom TextView that has role of "Heading" and focusable for
+   * accessibility purpose.
+   *
+   * @returns accessible TextView title
+   */
+  private static TextView getAccessibleTitle(Context activityContext, Bundle arguments) {
+    TextView accessibleTitle = new TextView(activityContext);
+    accessibleTitle.setText(arguments.getString(ARG_TITLE));
+    accessibleTitle.setFocusable(true);
+    accessibleTitle.setTextSize(TypedValue.COMPLEX_UNIT_DIP, 18);
+    Resources r = activityContext.getResources();
+    int paddingInPx =
+        (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 24, r.getDisplayMetrics());
+    accessibleTitle.setPadding(paddingInPx, paddingInPx, paddingInPx, 0);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+      accessibleTitle.setAccessibilityHeading(true);
+    } else {
+      ViewCompat.setAccessibilityDelegate(
+          accessibleTitle,
+          new AccessibilityDelegateCompat() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(
+                View view, AccessibilityNodeInfoCompat info) {
+              super.onInitializeAccessibilityNodeInfo(accessibleTitle, info);
+              info.setHeading(true);
+            }
+          });
+    }
+    return accessibleTitle;
+  }
+
+  /**
    * Creates a dialog compatible only with AppCompat activities. This function should be kept in
    * sync with {@link createAppDialog}.
    */
   private static Dialog createAppCompatDialog(
       Context activityContext, Bundle arguments, DialogInterface.OnClickListener fragment) {
+    TextView accessibleTitle = getAccessibleTitle(activityContext, arguments);
     AlertDialog.Builder builder =
-        new AlertDialog.Builder(activityContext).setTitle(arguments.getString(ARG_TITLE));
+        new AlertDialog.Builder(activityContext).setCustomTitle(accessibleTitle);
 
     if (arguments.containsKey(ARG_BUTTON_POSITIVE)) {
       builder.setPositiveButton(arguments.getString(ARG_BUTTON_POSITIVE), fragment);
@@ -104,9 +145,9 @@ public class AlertFragment extends DialogFragment implements DialogInterface.OnC
    */
   private static Dialog createAppDialog(
       Context activityContext, Bundle arguments, DialogInterface.OnClickListener fragment) {
+    TextView accessibleTitle = getAccessibleTitle(activityContext, arguments);
     android.app.AlertDialog.Builder builder =
-        new android.app.AlertDialog.Builder(activityContext)
-            .setTitle(arguments.getString(ARG_TITLE));
+        new android.app.AlertDialog.Builder(activityContext).setCustomTitle(accessibleTitle);
 
     if (arguments.containsKey(ARG_BUTTON_POSITIVE)) {
       builder.setPositiveButton(arguments.getString(ARG_BUTTON_POSITIVE), fragment);
